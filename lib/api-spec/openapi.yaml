@@ -1,22 +1,29 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: PlacementIQ API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: students
+    description: Student management and risk assessment
+  - name: dashboard
+    description: Dashboard and portfolio analytics
+  - name: alerts
+    description: Early alert management
+  - name: institutes
+    description: Institute management
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +31,211 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /students:
+    get:
+      operationId: listStudents
+      tags: [students]
+      summary: List all students with risk scores
+      parameters:
+        - name: riskBand
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high]
+        - name: instituteId
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of students
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentListResponse"
+    post:
+      operationId: createStudent
+      tags: [students]
+      summary: Add a new student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStudentBody"
+      responses:
+        "201":
+          description: Student created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+
+  /students/{id}:
+    get:
+      operationId: getStudent
+      tags: [students]
+      summary: Get student details with full risk profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Student details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentDetail"
+        "404":
+          description: Student not found
+
+  /students/{id}/score:
+    post:
+      operationId: recomputeStudentScore
+      tags: [students]
+      summary: Trigger on-demand score recomputation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated risk score
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskScore"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Portfolio-level risk summary and KPIs
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/cohort-breakdown:
+    get:
+      operationId: getCohortBreakdown
+      tags: [dashboard]
+      summary: Risk band distribution across cohorts
+      responses:
+        "200":
+          description: Cohort risk breakdown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CohortBreakdown"
+
+  /dashboard/placement-trends:
+    get:
+      operationId: getPlacementTrends
+      tags: [dashboard]
+      summary: Placement rate trends over time
+      responses:
+        "200":
+          description: Placement trends data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlacementTrends"
+
+  /dashboard/salary-distribution:
+    get:
+      operationId: getSalaryDistribution
+      tags: [dashboard]
+      summary: Expected salary range distribution by field
+      responses:
+        "200":
+          description: Salary distribution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalaryDistribution"
+
+  /alerts:
+    get:
+      operationId: listAlerts
+      tags: [alerts]
+      summary: List active early alerts for high-risk students
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, acknowledged, resolved]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: List of alerts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertListResponse"
+
+  /alerts/{id}/acknowledge:
+    post:
+      operationId: acknowledgeAlert
+      tags: [alerts]
+      summary: Mark alert as acknowledged
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Alert acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+
+  /institutes:
+    get:
+      operationId: listInstitutes
+      tags: [institutes]
+      summary: List all partner institutes
+      responses:
+        "200":
+          description: List of institutes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Institute"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +246,479 @@ components:
       required:
         - status
 
+    Student:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        courseType:
+          type: string
+        program:
+          type: string
+        graduationYear:
+          type: integer
+        cgpa:
+          type: number
+        instituteId:
+          type: integer
+        instituteName:
+          type: string
+        instituteTier:
+          type: string
+          enum: [A, B, C, D]
+        loanAmount:
+          type: number
+        riskBand:
+          type: string
+          enum: [low, medium, high]
+        placementScore3m:
+          type: number
+        placementScore6m:
+          type: number
+        placementScore12m:
+          type: number
+        expectedSalaryLow:
+          type: number
+        expectedSalaryMedian:
+          type: number
+        expectedSalaryHigh:
+          type: number
+        lastScoredAt:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - email
+        - courseType
+        - program
+        - graduationYear
+        - cgpa
+        - instituteId
+        - instituteName
+        - instituteTier
+        - loanAmount
+        - riskBand
+        - placementScore3m
+        - placementScore6m
+        - placementScore12m
+        - expectedSalaryLow
+        - expectedSalaryMedian
+        - expectedSalaryHigh
+        - lastScoredAt
+        - createdAt
+
+    StudentDetail:
+      allOf:
+        - $ref: "#/components/schemas/Student"
+        - type: object
+          properties:
+            internshipMonths:
+              type: integer
+            internshipEmployerType:
+              type: string
+              enum: [MNC, Startup, SME, None]
+            hasInternship:
+              type: boolean
+            certifications:
+              type: array
+              items:
+                type: string
+            jobPortalActivityScore:
+              type: number
+            interviewStage:
+              type: string
+            fieldDemandScore:
+              type: number
+            macroClimateIndex:
+              type: number
+            placementCellEffectiveness:
+              type: number
+            instituteAvg3mPlacementRate:
+              type: number
+            topPositiveFactors:
+              type: array
+              items:
+                $ref: "#/components/schemas/RiskFactor"
+            topNegativeFactors:
+              type: array
+              items:
+                $ref: "#/components/schemas/RiskFactor"
+            nextBestActions:
+              type: array
+              items:
+                $ref: "#/components/schemas/NextBestAction"
+            riskNarrative:
+              type: string
+          required:
+            - internshipMonths
+            - internshipEmployerType
+            - hasInternship
+            - certifications
+            - jobPortalActivityScore
+            - interviewStage
+            - fieldDemandScore
+            - macroClimateIndex
+            - placementCellEffectiveness
+            - instituteAvg3mPlacementRate
+            - topPositiveFactors
+            - topNegativeFactors
+            - nextBestActions
+            - riskNarrative
+
+    RiskFactor:
+      type: object
+      properties:
+        factor:
+          type: string
+        description:
+          type: string
+        impact:
+          type: number
+      required:
+        - factor
+        - description
+        - impact
+
+    NextBestAction:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [skill_up, resume_improvement, mock_interview, recruiter_match, counselling, emi_restructure]
+        title:
+          type: string
+        description:
+          type: string
+        priority:
+          type: string
+          enum: [high, medium, low]
+      required:
+        - type
+        - title
+        - description
+        - priority
+
+    RiskScore:
+      type: object
+      properties:
+        studentId:
+          type: integer
+        riskBand:
+          type: string
+          enum: [low, medium, high]
+        placementScore3m:
+          type: number
+        placementScore6m:
+          type: number
+        placementScore12m:
+          type: number
+        expectedSalaryLow:
+          type: number
+        expectedSalaryMedian:
+          type: number
+        expectedSalaryHigh:
+          type: number
+        scoredAt:
+          type: string
+      required:
+        - studentId
+        - riskBand
+        - placementScore3m
+        - placementScore6m
+        - placementScore12m
+        - expectedSalaryLow
+        - expectedSalaryMedian
+        - expectedSalaryHigh
+        - scoredAt
+
+    CreateStudentBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        courseType:
+          type: string
+        program:
+          type: string
+        graduationYear:
+          type: integer
+        cgpa:
+          type: number
+        instituteId:
+          type: integer
+        loanAmount:
+          type: number
+        internshipMonths:
+          type: integer
+        internshipEmployerType:
+          type: string
+          enum: [MNC, Startup, SME, None]
+        certifications:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - email
+        - courseType
+        - program
+        - graduationYear
+        - cgpa
+        - instituteId
+        - loanAmount
+
+    StudentListResponse:
+      type: object
+      properties:
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/Student"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+      required:
+        - students
+        - total
+        - page
+        - limit
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalStudents:
+          type: integer
+        highRiskCount:
+          type: integer
+        mediumRiskCount:
+          type: integer
+        lowRiskCount:
+          type: integer
+        avgPlacementScore6m:
+          type: number
+        totalLoanPortfolioValue:
+          type: number
+        atRiskPortfolioValue:
+          type: number
+        activeAlerts:
+          type: integer
+        placementRateThisMonth:
+          type: number
+        delinquencyRiskReduction:
+          type: number
+      required:
+        - totalStudents
+        - highRiskCount
+        - mediumRiskCount
+        - lowRiskCount
+        - avgPlacementScore6m
+        - totalLoanPortfolioValue
+        - atRiskPortfolioValue
+        - activeAlerts
+        - placementRateThisMonth
+        - delinquencyRiskReduction
+
+    CohortBreakdown:
+      type: object
+      properties:
+        byField:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              low:
+                type: integer
+              medium:
+                type: integer
+              high:
+                type: integer
+            required:
+              - field
+              - low
+              - medium
+              - high
+        byTier:
+          type: array
+          items:
+            type: object
+            properties:
+              tier:
+                type: string
+              low:
+                type: integer
+              medium:
+                type: integer
+              high:
+                type: integer
+            required:
+              - tier
+              - low
+              - medium
+              - high
+      required:
+        - byField
+        - byTier
+
+    PlacementTrends:
+      type: object
+      properties:
+        monthly:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+              placed3m:
+                type: number
+              placed6m:
+                type: number
+              placed12m:
+                type: number
+            required:
+              - month
+              - placed3m
+              - placed6m
+              - placed12m
+      required:
+        - monthly
+
+    SalaryDistribution:
+      type: object
+      properties:
+        byField:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              salaryLow:
+                type: number
+              salaryMedian:
+                type: number
+              salaryHigh:
+                type: number
+              count:
+                type: integer
+            required:
+              - field
+              - salaryLow
+              - salaryMedian
+              - salaryHigh
+              - count
+      required:
+        - byField
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+        studentId:
+          type: integer
+        studentName:
+          type: string
+        instituteName:
+          type: string
+        alertType:
+          type: string
+          enum: [risk_band_change, high_risk_threshold, emi_at_risk, score_drop]
+        severity:
+          type: string
+          enum: [critical, high, medium]
+        message:
+          type: string
+        riskBand:
+          type: string
+          enum: [low, medium, high]
+        daysToEmiStart:
+          type: integer
+        status:
+          type: string
+          enum: [active, acknowledged, resolved]
+        createdAt:
+          type: string
+      required:
+        - id
+        - studentId
+        - studentName
+        - instituteName
+        - alertType
+        - severity
+        - message
+        - riskBand
+        - daysToEmiStart
+        - status
+        - createdAt
+
+    AlertListResponse:
+      type: object
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alert"
+        total:
+          type: integer
+        page:
+          type: integer
+      required:
+        - alerts
+        - total
+        - page
+
+    Institute:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        tier:
+          type: string
+          enum: [A, B, C, D]
+        city:
+          type: string
+        state:
+          type: string
+        placementRate3m:
+          type: number
+        placementRate6m:
+          type: number
+        placementRate12m:
+          type: number
+        avgSalary:
+          type: number
+        recruiterCount:
+          type: integer
+        naacGrade:
+          type: string
+        studentCount:
+          type: integer
+      required:
+        - id
+        - name
+        - tier
+        - city
+        - state
+        - placementRate3m
+        - placementRate6m
+        - placementRate12m
+        - avgSalary
+        - recruiterCount
+        - naacGrade
+        - studentCount

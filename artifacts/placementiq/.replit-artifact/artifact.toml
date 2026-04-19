@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "PlacementIQ — Placement Risk Modeling"
+version = "1.0.0"
+id = "artifacts/placementiq"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23188
+
+[services.development]
+run = "pnpm --filter @workspace/placementiq run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/placementiq", "run", "build" ]
+publicDir = "artifacts/placementiq/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23188"
+BASE_PATH = "/"
